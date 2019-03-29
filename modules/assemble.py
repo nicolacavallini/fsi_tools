@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 from shapely.geometry import Point
+import multiprocessing
+import os
 
 # nicola modules
 import la_utils
@@ -69,7 +71,34 @@ def local_mass_matrix_tri(tri,xu_l,yu_l,xs_l,ys_l):
         lm += omega/3*np.dot(col,row)
     return lm
 
+
+
 def u_v_p1_periodic(topo,x,y,ie):
+    # print('assemble u_v_p1_periodic')
+    p = multiprocessing.Pool()
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo.shape[0]
+    workers = []
+    for k in range(n_cpu):
+        subtopo = topo[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu),:]
+        w = p.apply_async(calc_u_v_p1_periodic_partly, args = (subtopo, x, y, ie))
+        workers.append(w)
+
+    A = workers[0].get()
+    for k in range(1,n_cpu):
+        B = workers[k].get()
+        A += B
+
+    p.close()
+    p.join()
+
+    return A
+
+def calc_u_v_p1_periodic_partly(topo,x,y,ie):
 
     ndofs = max(ie)+1
 
@@ -94,6 +123,32 @@ def u_v_p1_periodic(topo,x,y,ie):
     return A
 
 def u_v_p1(topo,x,y):
+    # print('assemble u_v_p1')
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo.shape[0]
+    workers = []
+    for k in range(n_cpu):
+        subtopo = topo[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu),:]
+        w = p.apply_async(calc_u_v_p1_partly, args = (subtopo, x, y))
+        workers.append(w)
+
+    A = workers[0].get()
+    for k in range(1,n_cpu):
+        B = workers[k].get()
+        A += B
+
+    p.close()
+    p.join()
+
+    return A
+
+def calc_u_v_p1_partly(topo,x,y):
 
     ndofs = max(x.shape)
 
@@ -184,32 +239,33 @@ def u_v_p1_1d_inv_diag(topo,x):
     A = sparse.coo_matrix((vals, (rows,cols)), shape=(ndofs,ndofs))
     return A
 
-
-##def gradu_gradv_p1(topo,x,y):
-##
-##    ndofs = max(x.shape)
-##
-##    A = sparse.csr_matrix((ndofs,ndofs))
-##
-##    for row in topo:
-##        x_l = x[row]
-##        y_l = y[row]
-##        eval_points = np.zeros((0,2))
-##        (phi_dx,phi_dy,phi,omega) = basis.tri_p1(x_l,y_l,eval_points)
-##        dx_j = phi_dx
-##        dx_i = phi_dx.transpose()
-##        dy_j = phi_dy
-##        dy_i = phi_dy.transpose()
-##        local_matrix = omega*(np.dot(dx_i,dx_j)+np.dot(dy_i,dy_j))
-##        [r,c] = np.meshgrid(row,row)
-##        r = np.concatenate(r)
-##        c = np.concatenate(c)
-##        vals = np.concatenate(local_matrix)
-##        tmp = sparse.coo_matrix((vals, (r,c)), shape=(ndofs,ndofs))
-##        A = A+tmp
-##    return A
-
 def gradu_gradv_p1_ieq(topo,x,y,ieq):
+    # print('assemble gradu_gradv_p1_ieq')
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo.shape[0]
+    workers = []
+    for k in range(n_cpu):
+        subtopo = topo[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu),:]
+        w = p.apply_async(calc_gradu_gradv_p1_ieq_partly, args = (subtopo, x, y, ieq))
+        workers.append(w)
+
+    A = workers[0].get()
+    for k in range(1,n_cpu):
+        B = workers[k].get()
+        A += B
+
+    p.close()
+    p.join()
+
+    return A
+
+def calc_gradu_gradv_p1_ieq_partly(topo,x,y,ieq):
 
     ndofs = max(ieq)+1
 
@@ -241,6 +297,32 @@ def gradu_gradv_p1_ieq(topo,x,y,ieq):
     return A
 
 def gradu_gradv_p1(topo,x,y):
+    # print('assemble gradu_gradv_p1')
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo.shape[0]
+    workers = []
+    for k in range(n_cpu):
+        subtopo = topo[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu),:]
+        w = p.apply_async(calc_gradu_gradv_p1_partly, args = (subtopo, x, y))
+        workers.append(w)
+
+    A = workers[0].get()
+    for k in range(1,n_cpu):
+        B = workers[k].get()
+        A += B
+
+    p.close()
+    p.join()
+
+    return A
+
+def calc_gradu_gradv_p1_partly(topo,x,y):
     """
     Assembling the Laplace operator. The function name resambles the
     operator gradtient of the trial functionctions, multiplied the gradient of
@@ -284,8 +366,6 @@ def gradu_gradv_p1(topo,x,y):
         x_l = x[row]
         y_l = y[row]
         eval_points = np.zeros((0,2))
-        #plt.spy(eval_points)
-        #plt.show()
 
         (phi_dx,phi_dy,phi,omega) = basis.tri_p1(x_l,y_l,eval_points)
         dx_j = phi_dx
@@ -302,6 +382,82 @@ def gradu_gradv_p1(topo,x,y):
     A.tocsr()
 
     return A
+
+def u_gradv_w_p1(topo, x, y, u_x, u_y):
+    # Assembling the Nonlinear convective operator. The function name resambles the
+    # operator assuming P1 elements on trinangles
+    # As we have P1 elements, the gradient of v is piecewise constant, so we can factor
+    # grad v out of the integral and just consider the integral of u*w
+    # print('assemble u_gradv_w_p1')
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo.shape[0]
+    workers = []
+    for k in range(n_cpu):
+        subtopo = topo[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu),:]
+        w = p.apply_async(calc_u_gradv_w_p1_partly, args = (subtopo, x, y, u_x, u_y))
+        workers.append(w)
+
+    A11 = workers[0].get()
+    for k in range(1,n_cpu):
+        B11 = workers[k].get()
+        A11 += B11
+
+    p.close()
+    p.join()
+
+    return A11
+
+def calc_u_gradv_w_p1_partly(topo, x, y, u_x, u_y):
+    ndofs = max(x.shape)
+
+    u_x = np.reshape(u_x, (ndofs, 1))
+    u_y = np.reshape(u_y, (ndofs, 1))
+
+    A11 = sparse.csr_matrix((ndofs,ndofs))
+
+    for row in topo:
+        x_l = x[row]
+        y_l = y[row]
+        local_matrix = np.zeros((3,3))
+        local_mass_matrix = local_p1_p1_mass_tri(x_l,y_l)
+
+        eval_points = np.zeros( (3,2) )
+        eval_points[:,0] = x_l.transpose()
+        eval_points[:,1] = y_l.transpose()
+
+        (v_dx,v_dy,v_l,omega_v) = basis.tri_p1(x_l,y_l,eval_points)
+
+        # local_matrix = np.reshape(np.dot(u_x[row].transpose(), local_mass_matrix), (1,3))
+        # local_matrix = np.dot(v_dx.transpose(), local_matrix)
+        # A11 = la_utils.add_local_to_global(A11,local_matrix,row,row)
+        #
+        # local_matrix = np.reshape(np.dot(u_y[row].transpose(), local_mass_matrix), (1,3))
+        # local_matrix = np.dot(v_dy.transpose(), local_matrix)
+        # A11 = la_utils.add_local_to_global(A11,local_matrix,row,row)
+
+        local_matrix = np.dot(local_mass_matrix, u_x[row])
+        local_matrix = np.dot(local_matrix, v_dx)
+        A11 = la_utils.add_local_to_global(A11,local_matrix,row,row)
+
+        local_matrix = np.dot(local_mass_matrix, u_y[row])
+        local_matrix = np.dot(local_matrix, v_dy)
+        A11 = la_utils.add_local_to_global(A11,local_matrix,row,row)
+
+        # local_matrix = np.reshape(np.dot(u_x[row].transpose(), local_mass_matrix), (1,3))
+        # local_matrix = np.dot(v_dx.transpose(), local_matrix)
+        # A22 = la_utils.add_local_to_global(A22,local_matrix,row,row)
+        #
+        # local_matrix = np.reshape(np.dot(u_y[row].transpose(), local_mass_matrix), (1,3))
+        # local_matrix = np.dot(v_dy.transpose(), local_matrix)
+        # A22 = la_utils.add_local_to_global(A22,local_matrix,row,row)
+
+    return A11
 
 def divu_p_p1_iso_p2_p1(topo_p,x_p,y_p,
            topo_u,x_u,y_u,c2f):
@@ -351,14 +507,41 @@ def divu_p_p1_iso_p2_p1(topo_p,x_p,y_p,
 
 def divu_p_p1_iso_p2_p1p0(topo_p,x_p,y_p,
            topo_u,x_u,y_u,c2f):
+    # print('assemble divu_p_p1_iso_p2_p1p0')
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print(n_cpu)
+    numel = topo_p.shape[0]
+    workers = []
+    ndofs_p = max(x_p.shape) + topo_p.shape[0]
+    for k in range(n_cpu):
+        subtopo = topo_p[int(numel*k/n_cpu):int(numel*(k+1)/n_cpu)]
+        w = p.apply_async(calc_divu_p_p1_iso_p2_p1po_partly,
+            args = (subtopo,x_p,y_p,topo_u,x_u,y_u,c2f,int(numel*k/n_cpu),ndofs_p))
+        workers.append(w)
+
+    (B1, B2) = workers[0].get()
+    for k in range(1,n_cpu):
+        (C1, C2) = workers[k].get()
+        B1 += C1
+        B2 += C2
+
+    p.close()
+    p.join()
+
+    return B1, B2
+
+def calc_divu_p_p1_iso_p2_p1po_partly(topo_p, x_p,y_p,topo_u,x_u,y_u,c2f,el_id,ndofs_p):
 
     ndofs_u = max(x_u.shape)
-    ndofs_p = max(x_p.shape) + topo_p.shape[0]
 
     B1 = sparse.csr_matrix((ndofs_u,ndofs_p))
     B2 = sparse.csr_matrix((ndofs_u,ndofs_p))
 
-    el_id = 0
     for nd_p in topo_p:
         #print("====================")
         #print nd_p
@@ -504,13 +687,41 @@ def u_s_p1_thick(x_u,y_u,topo_u,
                 s_lgr,t_lgr,
                 x_str,y_str,topo_s,ie_s,
                 str_segments,fluid_id):
+    p = multiprocessing.Pool()
+    # n_cpu = 4
+    if os.environ.get('FSI_NUM_THREADS') == None:
+        n_cpu = multiprocessing.cpu_count()
+    else:
+        n_cpu = int(os.environ.get('FSI_NUM_THREADS'))
+    # print n_cpu
+    numseg = len(str_segments)
+    workers = []
+    for k in range(n_cpu):
+        subsegs = str_segments[int(numseg*k/n_cpu):int(numseg*(k+1)/n_cpu)]
+        w = p.apply_async(calc_u_s_p1_thick_partly,
+            args = (x_u,y_u,topo_u,s_lgr,t_lgr,x_str,y_str,topo_s,ie_s,subsegs,fluid_id,int(numseg*k/n_cpu)))
+        workers.append(w)
+
+    GT = workers[0].get()
+    for k in range(1,n_cpu):
+        HT = workers[k].get()
+        GT += HT
+
+    p.close()
+    p.join()
+
+    return GT
+
+def calc_u_s_p1_thick_partly(x_u,y_u,topo_u,
+                s_lgr,t_lgr,
+                x_str,y_str,topo_s,ie_s,
+                str_segments,fluid_id,str_id):
 
    #(rows,cols) = la_utils.fluid_str_sparsity_pattern(
    #topo_u,topo_s,ie_s,fluid_id)
 
    #print rows
    #print cols
-
    righe = x_u.shape[0]
    colonne = max(ie_s)+1
 
@@ -518,59 +729,31 @@ def u_s_p1_thick(x_u,y_u,topo_u,
 
    #values = np.zeros(rows.shape)
 
-   str_id = 0
    for chunks in str_segments:
-       #print '======================'
-       #print 'els = ' + str(str_id)
        nds = topo_s[str_id,:]
        xs_l = x_str[nds]
        ys_l = y_str[nds]
        s_l = s_lgr[nds]
        t_l = t_lgr[nds]
        tri_map = geom.tri_lin_map(xs_l,ys_l,s_l,t_l)
-       #print s_l
-       #print t_l
        ies_l = ie_s[nds]
        chunk_id = 0
        for poly in chunks:
            if poly.area>1e-10:
                elf = fluid_id[str_id][chunk_id]
-               #print 'elf = ' + str(elf)
                ndf = topo_u[elf,:]
                xu_l = x_u[ndf]
                yu_l = y_u[ndf]
-               #print xu_l
-               #print yu_l
                triangles = geom.triangulate(poly)
                local_matrix = np.zeros((3,3))
                for tri in triangles:
-                   #print '----------------------'
                    tmp = np.array(list(tri.exterior.coords)[0:3])
-                   #print tmp
                    lm = local_fluid_str_coupling(tmp,xu_l,yu_l,s_l,t_l,tri_map)
-                   #lm = local_mass_matrix_tri(tmp,xu_l,yu_l,xs_l,ys_l)
                    local_matrix += lm
-               #print local_matrix*24*6*6
                GT = la_utils.add_local_to_global(GT,local_matrix,ndf,ies_l)
-               #values = la_utils.add_local_to_global_coo(rows,cols,values,
-               #                ndf,ies_l,local_matrix)
-                   #break
-                   #print eval_p
-                   #values = la_utils.add_local_to_global_coo(rows,cols,values,
-                   #            ndf,ies_l,lm)
-                   #print 'triangle'
-               #for tri in triangles:
-               #    print len(tri.exterior.coords)
-               #print chunk_id
            chunk_id+=1
-           #break
-           #break
        str_id += 1
-       #break
-   #MT = sparse.coo_matrix((values,(rows,cols)),shape=(righe,colonne))
    GT.tocsr()
-   #print GT
-   #print MT
    return GT
 
 def u_v_lin_p1(topo_s,s_lgr,ieq_s):

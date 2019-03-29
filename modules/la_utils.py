@@ -10,34 +10,34 @@ from preconditioner import NullPreconditioner
 
 def linspace_wide(real,npts,width):
     # given the vector "real"
-    # define equalliy spaced 
-    # spaced vector "r" going form 
+    # define equalliy spaced
+    # spaced vector "r" going form
     # min(real)-width*(range) to max(real) + width*range
     # range = max - min
     r = np.linspace( np.amin(real) - width*(np.amax(real)-np.amin(real)), np.amax(real) + width*(np.amax(real)-np.amin(real)),npts)
     return r
 
 def char_poly(real,imag,npts,width):
-    # given real and imaginary parts of the 
+    # given real and imaginary parts of the
     # eigenvalues, it returns the characterstic polynomial
-    # evaluated along pts points equally spaced going form 
+    # evaluated along pts points equally spaced going form
     # min(real)-width*(range) to max(real) + width*range
-    # range = max - min, on the real axis. same thing on the 
+    # range = max - min, on the real axis. same thing on the
     # imaginary one.
 
     r = linspace_wide(real,npts,width)
     i = linspace_wide(imag,npts,width)
     r,i = np.meshgrid(r,i)
-    
+
     eigs = np.vectorize(np.complex)(real,imag)
     z = np.vectorize(np.complex)(r,i)
-    
+
     poly = np.ones(z.shape)
     poly = np.vectorize(np.complex)(poly)
-    
+
     for ritz in eigs:
         poly *= z - ritz
-    
+
     return r,i,poly
 
 
@@ -48,66 +48,66 @@ def real_img_eigs_parts(Nu):
     return real_val, imag_val
 
 def rand_sparse_matrix(mu,sigma,shape):
-    # dense matrix in sparse format with random entries 
+    # dense matrix in sparse format with random entries
     # used for exercies
 
     m = shape[0]
     n = shape[1]
-        
+
     c_id = np.arange(0,n,dtype=np.int32)
     c_id = np.reshape(c_id,(1,n))
-    
+
     c = np.dot(np.ones((m,1),dtype=np.int32),c_id)
     c = c.flatten()
-    
+
     r_id = np.arange(0,m,dtype=np.int32)
     r_id = np.reshape(r_id,(m,1))
-    
+
     r = np.dot(r_id,np.ones((1,n),dtype=np.int32))
     r = r.flatten()
-    
+
     v = np.random.normal(mu,sigma,c.shape)
-    
+
     A = sparse.coo_matrix((v, (r, c)), shape)
 
     return A
 
 def arnoldi_iteration(A,n_iter,P=None):
-    
+
     m = A.shape[0]
-    
+
     if P is None:
         P = NullPreconditioner(A.shape)
-    
+
     offsets = np.arange(-1,n_iter)
-    
+
     n_el = n_iter
     for i in np.arange(1,n_iter):
         n_el += n_iter-i
-    
+
     data = array([np.arange(1,n_iter+1)]).repeat(n_iter+1,axis=0)
     H = sparse.dia_matrix((data,offsets),(n_iter+1,n_iter),dtype=np.float64)
-    
+
     c_id = np.arange(0,n_iter+1,dtype=np.int32)
     c_id = np.reshape(c_id,(1,n_iter+1))
-    
+
     c = np.dot(np.ones((m,1),dtype=np.int32),c_id)
     c = c.flatten()
-    
+
     r_id = np.arange(0,m,dtype=np.int32)
     r_id = np.reshape(r_id,(m,1))
-    
+
     r = np.dot(r_id,np.ones((1,n_iter+1),dtype=np.int32))
     r = r.flatten()
-    
+
     Q = sparse.coo_matrix((np.zeros(r.shape), (r,c)), (m,n_iter+1),dtype=np.float64)
-    
+
     b = np.zeros((m,1),dtype=np.float64)
     b[0,0] = 1
-    
+
     Q = Q.tolil()
     H = H.tolil()
-    
+
     Q[:,0] = b/la.norm(b)
 
     for n in np.arange(0,n_iter):
@@ -121,37 +121,37 @@ def arnoldi_iteration(A,n_iter,P=None):
             v = v - hjn*qj
         H[n+1,n] = la.norm(v,2)
         Q[:,n+1] = v/la.norm(v,2)
-        print 'arnoldi iter: ' + str(n) + ', of: ' + str(n_iter)
-    
-    #print '----------------------'
+        ##print('arnoldi iter: ' + str(n) + ', of: ' + str(n_iter))
+
+    ##print '----------------------'
     return H[:-1,:],Q[:,:-1]
 
 def multiply_inverse(A,Bt,log=False):
-    
+
     v = np.zeros((A.shape[0],0))
     Bt = Bt.tolil()
-    
-    if log == True:
-        line = 'multiply inverse, 0 % done.'
-        print(line),
-        
-    
+
+    # if log == True:
+    #     line = 'multiply inverse, 0 % done.'
+    #     ##print((line), end=' ')
+
+
     for i in range(0,Bt.shape[1]):
         f = Bt[:,i]
         s = sp_la.spsolve(A.tocsr(),f)
         s = np.reshape(s,(Bt.shape[0],1))
-        v = np.hstack([v,s])        
-        if log == True:
-            r = float(i)/float(Bt.shape[1])
-            r = int(100*r)
-            print('\r' * len(line)),
-            line = 'multiply inverse, ' + str(r)
-            #print output
-            line += ' % done.'
-            print(line),
-
-    if log == True:
-        print
+        v = np.hstack([v,s])
+    #     if log == True:
+    #         r = float(i)/float(Bt.shape[1])
+    #         r = int(100*r)
+    #         #print(('\r' * len(line)), end=' ')
+    #         line = 'multiply inverse, ' + str(r)
+    #         ##print output
+    #         line += ' % done.'
+    #         #print((line), end=' ')
+    #
+    # #if log == True:
+    #     #print()
 
     return v
 
@@ -210,8 +210,8 @@ def ismember(a, b):
 def get_connectivity_matrix(topo):
     dof_per_el = topo.shape[1]
     nels = topo.shape[0]
-    #print dof_per_el
-    #print nels
+    ##print dof_per_el
+    ##print nels
     rows = np.reshape(topo,(dof_per_el*nels))
     n_dofs = max(rows)+1
     cols = np.arange(0,nels)
@@ -227,13 +227,13 @@ def get_connectivity_matrix(topo):
 def get_connectivity_matrix_ieq(topo,ieq):
     dof_per_el = topo.shape[1]
     nels = topo.shape[0]
-    #print dof_per_el
-    #print nels
+    ##print dof_per_el
+    ##print nels
     rows = np.reshape(topo,(dof_per_el*nels))
-    #print 'rows = '
-    #print rows
+    ##print 'rows = '
+    ##print rows
     rows = ieq[rows]
-    #print rows
+    ##print rows
     n_dofs = max(rows)+1
     cols = np.arange(0,nels)
     cols = np.reshape(cols,(cols.shape[0],1))
@@ -260,10 +260,10 @@ def fluid_str_sparsity_pattern(topo_u,topo_s,ie_s,fluid_id):
             rows = np.hstack([rows,row])
         str_id += 1
     values = np.ones(rows.shape)
-    #print nel_f
-    #print ndofs_s
-    #print max(cols[0])
-    #print max(rows[0])
+    ##print nel_f
+    ##print ndofs_s
+    ##print max(cols[0])
+    ##print max(rows[0])
     ETS = sparse.coo_matrix((values[0],(rows[0],cols[0])),shape=(nel_f,ndofs_s))
     EU = get_connectivity_matrix(topo_u)
     A = EU.dot(ETS)
@@ -274,14 +274,14 @@ def fluid_str_sparsity_pattern(topo_u,topo_s,ie_s,fluid_id):
 ##    for chunks in fluid_id:
 ##        ies_l = ie_s[topo_s[str_id,:]]
 ##        c = np.reshape(ies_l,(1,3))
-##        #print 'str eq ='
-##        #print ies_l
+##        ##print 'str eq ='
+##        ##print ies_l
 ##        for fel in chunks:
 ##            r = np.reshape(topo_u[fel,:],(1,3))
 ##            rows = np.hstack([rows,r])
 ##            cols = np.hstack([cols,c])
-##            #print 'fluid eq ='
-##            #print topo_u[fel,:]
+##            ##print 'fluid eq ='
+##            ##print topo_u[fel,:]
 ##        str_id += 1
 ##
 ##    entries = np.zeros(rows.shape,dtype = [('row',int),('cln',int)])
@@ -351,7 +351,7 @@ def add_local_to_global_coo(rows,cols,values,
     entry['cln'] = c
     # users have to control that entry and gerntry refer
     # to the same global matrix entries, but the order
-    # in wich they are stored is not the same. 
+    # in wich they are stored is not the same.
     gentry = np.zeros(r.shape[0],dtype = [('row',int),('cln',int)])
     gentry['row'] = gr
     gentry['cln'] = gc
@@ -359,12 +359,12 @@ def add_local_to_global_coo(rows,cols,values,
     # of matlab "ismember" to get the mapping form the
     # contruction order to the allocation order.
     (tf,index) = ismember(entry,gentry)
-    #print '----------'
-    #print vid
-    #print index
-    #print entry
-    #print gentry
-    #print '----------'
+    ##print '----------'
+    ##print vid
+    ##print index
+    ##print entry
+    ##print gentry
+    ##print '----------'
     # I finally permute the local matrix
     permuted_local_matrix = np.zeros(local_matrix.shape)
     permuted_local_matrix[index] = local_matrix
@@ -413,51 +413,19 @@ def get_cols(A,id_start,id_end):
     return A
 
 def set_diag(A,bc_id):
-    #plt.spy(A)
-    #plt.show()
     ndofs = A.shape[0]
-    diago = A.diagonal()
-    #print diago
-    #diago = A[range(0,ndofs),range(0,ndofs)]
+    #diago = A.diagonal()
+    #Remove rows from A
     uno = np.ones((1,ndofs))
     uno[:,bc_id] = 0
-    #print bc_id
-    #print uno
     uno = sparse.dia_matrix((uno,0), shape = (ndofs,ndofs))
-    #plt.spy(uno)
-    #plt.show() 
-    #print uno	
-    A = uno.dot(A) # uno*A
-    #plt.spy(A)
-    #plt.show() 
-    #print 'A = '
-    #print A
-    #print uno
-    #uno = np.zeros((1,ndofs))
-    #diago = A[range(0,ndofs),range(0,ndofs)]
+    A = uno.dot(A)
+    #Set diagonals to 1
     uno = np.zeros((1,ndofs))
-    uno[:,bc_id] = diago[bc_id]
-    #plt.spy(uno)
-    #plt.show() 
-    #for i in bc_id:
-    #    uno[0,i] = diago[0,i]
-    #
-    #
-    #print '***'
-    #print bc_id
-    #print uno.shape
-    #print diago.shape
-    #print uno[0,bc_id]
-    #print '***'
-    #print uno
+    uno[:,bc_id] = 1#diago[bc_id]
     uno = sparse.dia_matrix((uno,0), shape = (ndofs,ndofs))
-    #plt.spy(uno)
-    #plt.show() 
     A = A+uno
-    #print 'A = '
-    #print A
-    #print 'diago = '
-    #print diago
+
     return A
 
 def clear_rows(A,bc_id):
